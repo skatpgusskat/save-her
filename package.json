@@ -1,0 +1,29 @@
+{
+  "name": "save-her",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node dist/index.js",
+    "build": "tsc",
+    "watch-build": "tsc -w",
+    "watch-start": "nodemon --watch dist dist/index.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "koa": "^2.7.0",
+    "koa-bodyparser": "^4.2.1",
+    "koa-router": "^7.4.0",
+    "typescript": "^3.3.1",
+    "webtorrent": "^0.103.0"
+  },
+  "devDependencies": {
+    "@types/koa": "^2.0.48",
+    "@types/koa-bodyparser": "^4.2.1",
+    "@types/koa-router": "^7.0.39",
+    "@types/node": "^10.12.21",
+    "@types/webtorrent": "^0.98.4"
+  }
+}
