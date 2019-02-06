@@ -2,6 +2,7 @@ import WebTorrent, { Torrent } from 'webtorrent';
 import path from 'path';
 import fs from 'fs-extra';
 import S3Uploader from './S3Uploader';
+import DbManager from './DbManager';
 
 const downloadDirectory = path.join(__dirname, 'files');
 if (!fs.existsSync(downloadDirectory)) {
@@ -17,6 +18,7 @@ export default class TorrentDownloader {
   private torrents: Torrent[] = [];
   private torrentClient = new WebTorrent();
   private s3Uploader = new S3Uploader();
+  private dbManager = new DbManager();
 
   constructor() {
     this.torrentClient.on("error", (err) => {
@@ -52,6 +54,7 @@ export default class TorrentDownloader {
     });
 
     if (this.isAlreadyAdded(torrent)) {
+      console.log('already added');
       torrent.destroy();
       return null;
     }
@@ -76,6 +79,13 @@ export default class TorrentDownloader {
     return filePath;
   }
 
+  private async removeDownloadedFiles(torrent: Torrent) {
+    await Promise.all(torrent.files.map(async file => {
+      const filePath = path.join(downloadDirectory, file.path);
+      await fs.remove(filePath);
+    }))
+  }
+
   private async removeTorrent(torrent: Torrent) {
     const torrentFilePath = this.getTorrentFilePath(torrent);
 
@@ -85,7 +95,11 @@ export default class TorrentDownloader {
       fs.remove(torrentFilePath);
     }
 
+    await this.removeDownloadedFiles(torrent);
+
     torrent.destroy();
+
+    this.torrents = this.torrents.filter(myTorrent => myTorrent !== torrent);
   }
 
   private isAlreadyAdded(torrent: Torrent) {
@@ -99,6 +113,7 @@ export default class TorrentDownloader {
   }
 
   private async onDownloadDone(torrent: Torrent) {
+    await this.dbManager.addTorrent(torrent);
     await Promise.all(torrent.files.map(async (file) => {
       const buffer = await new Promise<Buffer>((resolve, reject) => {
         file.getBuffer((err, buffer) => {
@@ -109,8 +124,14 @@ export default class TorrentDownloader {
         });
       });
       console.log(`start uploading ${file.path}`);
-      await this.s3Uploader.upload(buffer, file.path);
+
+      const s3Key = this.s3Uploader.encodeStringForS3Key(file.path);
+
+      await this.dbManager.addFile(torrent, file, s3Key);
+
+      await this.s3Uploader.upload(buffer, s3Key);
       console.log(`uploading finished ${file.path}`);
     }));
+    await this.removeTorrent(torrent);
   }
 }

@@ -1,4 +1,6 @@
 import AWS from 'aws-sdk';
+import crypto from 'crypto';
+
 const isProduciton = process.env.NODE_ENV === 'production';
 
 const s3Option = isProduciton
@@ -79,5 +81,7 @@ export default class S3Uploader {
     await this.s3.putBucketPolicy(params).promise();
   }
 
-
+  public encodeStringForS3Key(str: string) {
+    return crypto.createHash('md5').update(str).digest("hex");
+  }
 }
