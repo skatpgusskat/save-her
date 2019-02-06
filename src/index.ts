@@ -4,7 +4,6 @@ import bodyParser from 'koa-bodyparser';
 import TorrentDownloader from "./TorrentDownloader";
 
 const torrentDownloader = new TorrentDownloader();
-
 const app = new Koa();
 
 app.use(bodyParser());
@@ -15,12 +14,12 @@ router.post('/magnet', (ctx) => {
   const {
     magnetUri,
   } = ctx.request.body;
-  torrentDownloader.AddMagnet(magnetUri);
+  torrentDownloader.addMagnet(magnetUri);
   ctx.status = 200;
 });
 
 router.get('/torrents', (ctx) => {
-  const torrents = torrentDownloader.GetAllTorrents();
+  const torrents = torrentDownloader.getAllTorrents();
   ctx.body = torrents.map(torrent => {
     return {
       magnetURI: torrent.magnetURI,
