@@ -16,6 +16,11 @@ export default class TorrentDownloader {
   private torrents: Torrent[] = [];
   private torrentClient = new WebTorrent();
   constructor() {
+    this.loadSavedTorrentFiles();
+
+    this.torrentClient.on("error", (err) => {
+      console.error(err);
+    });
     setInterval(() => {
       this.torrents.forEach(torrent => {
         console.log(torrent.ready);
@@ -24,12 +29,22 @@ export default class TorrentDownloader {
     }, 1000);
   }
 
-  public addMagnet(magnetUri): Torrent {
-    const torrent = this.torrentClient.add(magnetUri, {
+  private async loadSavedTorrentFiles() {
+    const filenames = await fs.readdir(torrentFilesDirectory);
+    await Promise.all(filenames.map(async (filename) => {
+      const filePath = path.join(torrentFilesDirectory, filename);
+      const file = await fs.readFile(filePath);
+      this.requestDownload(file);
+    }));
+  }
+
+  public requestDownload(magnetUriOrTorrentFile: string | Buffer): Torrent {
+    const torrent = this.torrentClient.add(magnetUriOrTorrentFile, {
       path: downloadDirectory,
     });
 
     if (this.isAlreadyAdded(torrent)) {
+      torrent.destroy();
       return null;
     }
 

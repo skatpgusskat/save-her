@@ -14,7 +14,7 @@ router.post('/magnet', (ctx) => {
   const {
     magnetUri,
   } = ctx.request.body;
-  torrentDownloader.addMagnet(magnetUri);
+  torrentDownloader.requestDownload(magnetUri);
   ctx.status = 200;
 });
 
