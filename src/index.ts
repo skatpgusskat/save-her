@@ -29,4 +29,10 @@ router.get('/torrents', (ctx) => {
 
 app.use(router.routes());
 
-app.listen(8080);
+const port = 8080;
+torrentDownloader.init().then(() => {
+  console.log('init finished');
+  app.listen(port, () => {
+    console.log(`start server on port ${port}`);
+  });
+});

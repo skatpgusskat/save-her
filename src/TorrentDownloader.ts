@@ -1,6 +1,7 @@
 import WebTorrent, { Torrent } from 'webtorrent';
 import path from 'path';
 import fs from 'fs-extra';
+import S3Uploader from './S3Uploader';
 
 const downloadDirectory = path.join(__dirname, 'files');
 if (!fs.existsSync(downloadDirectory)) {
@@ -15,18 +16,25 @@ if (!fs.existsSync(torrentFilesDirectory)) {
 export default class TorrentDownloader {
   private torrents: Torrent[] = [];
   private torrentClient = new WebTorrent();
-  constructor() {
-    this.loadSavedTorrentFiles();
+  private s3Uploader = new S3Uploader();
 
+  constructor() {
     this.torrentClient.on("error", (err) => {
       console.error(err);
     });
+
     setInterval(() => {
       this.torrents.forEach(torrent => {
-        console.log(torrent.ready);
-        console.log(torrent.torrentFile.length);
+        console.log(torrent.progress);
       });
     }, 1000);
+  }
+
+  public async init() {
+    await Promise.all([
+      this.loadSavedTorrentFiles(),
+      this.s3Uploader.init()
+    ]);
   }
 
   private async loadSavedTorrentFiles() {
@@ -51,6 +59,9 @@ export default class TorrentDownloader {
     this.torrents.push(torrent);
     torrent.on("metadata", () => {
       this.onMetadataLoaded(torrent);
+    });
+    torrent.on("done", () => {
+      this.onDownloadDone(torrent);
     });
 
     return torrent;
@@ -85,5 +96,21 @@ export default class TorrentDownloader {
     console.log("metadata torrent.torrentFile.length", torrent.torrentFile.length);
     const torrentFilePath = this.getTorrentFilePath(torrent);
     await fs.writeFile(torrentFilePath, torrent.torrentFile);
+  }
+
+  private async onDownloadDone(torrent: Torrent) {
+    await Promise.all(torrent.files.map(async (file) => {
+      const buffer = await new Promise<Buffer>((resolve, reject) => {
+        file.getBuffer((err, buffer) => {
+          if (err) {
+            return reject(err);
+          }
+          resolve(buffer);
+        });
+      });
+      console.log(`start uploading ${file.path}`);
+      await this.s3Uploader.upload(buffer, file.path);
+      console.log(`uploading finished ${file.path}`);
+    }));
   }
 }
