@@ -44,16 +44,16 @@ export default class TorrentDownloader {
     await Promise.all(filenames.map(async (filename) => {
       const filePath = path.join(torrentFilesDirectory, filename);
       const file = await fs.readFile(filePath);
-      this.requestDownload(file);
+      await this.requestDownload(file);
     }));
   }
 
-  public requestDownload(magnetUriOrTorrentFile: string | Buffer): Torrent {
+  public async requestDownload(magnetUriOrTorrentFile: string | Buffer): Promise<Torrent> {
     const torrent = this.torrentClient.add(magnetUriOrTorrentFile, {
       path: downloadDirectory,
     });
 
-    if (this.isAlreadyAdded(torrent)) {
+    if (await this.isAlreadyAdded(torrent)) {
       console.log('already added');
       torrent.destroy();
       return null;
@@ -102,8 +102,9 @@ export default class TorrentDownloader {
     this.torrents = this.torrents.filter(myTorrent => myTorrent !== torrent);
   }
 
-  private isAlreadyAdded(torrent: Torrent) {
-    return this.torrents.some(addedTorrent => addedTorrent.infoHash === torrent.infoHash);
+  private async isAlreadyAdded(torrent: Torrent) {
+    return this.torrents.some(addedTorrent => addedTorrent.infoHash === torrent.infoHash)
+      || await this.dbManager.isAlreadyAddedTorrent(torrent);
   }
 
   private async onMetadataLoaded(torrent: Torrent) {

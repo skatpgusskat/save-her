@@ -11,6 +11,7 @@ export default class DbManager {
       infoHash: torrent.infoHash,
     }).into('torrents');
   }
+
   public async addFile(torrent: Torrent, file: TorrentFile, s3Key: string) {
     await this.knex.insert({
       torrentId: this.knex('torrents').select('id').where('infoHash', torrent.infoHash),
@@ -18,5 +19,12 @@ export default class DbManager {
       filePath: file.path,
       s3Key,
     }).into('files');
+  }
+
+  public async isAlreadyAddedTorrent(torrent: Torrent): Promise<boolean> {
+    const torrents = await this.knex.select('id').where({
+      infoHash: torrent.infoHash,
+    }).from('torrents');
+    return torrents.length > 0;
   }
 }

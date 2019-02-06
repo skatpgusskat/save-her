@@ -12,11 +12,11 @@ app.use(bodyParser());
 
 const router = new Router();
 
-router.post('/magnet', (ctx) => {
+router.post('/magnet', async (ctx) => {
   const {
     magnetUri,
   } = ctx.request.body;
-  torrentDownloader.requestDownload(magnetUri);
+  await torrentDownloader.requestDownload(magnetUri);
   ctx.status = 200;
 });
 
