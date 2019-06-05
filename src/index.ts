@@ -4,6 +4,7 @@ import Koa from 'koa';
 import Router from 'koa-router';
 import bodyParser from 'koa-bodyparser';
 import TorrentDownloader from "./TorrentDownloader";
+import TorrentModel from './Model/TorrentModel';
 
 const torrentDownloader = new TorrentDownloader();
 const app = new Koa();
@@ -16,18 +17,25 @@ router.post('/magnet', async (ctx) => {
   const {
     magnetUri,
   } = ctx.request.body;
-  await torrentDownloader.requestDownload(magnetUri);
+
+  const torrent = await torrentDownloader.startDownload(magnetUri);
+
+  await TorrentModel.query().insert({
+    name: torrent.name,
+    infoHash: torrent.infoHash,
+  });
+
   ctx.status = 200;
 });
 
-router.get('/torrents', (ctx) => {
-  const torrents = torrentDownloader.getAllTorrents();
-  ctx.body = torrents.map(torrent => {
-    return {
-      magnetURI: torrent.magnetURI,
-    };
-  });
-});
+// router.get('/torrents', (ctx) => {
+//   const torrents = torrentDownloader.getAllTorrents();
+//   ctx.body = torrents.map(torrent => {
+//     return {
+//       magnetURI: torrent.magnetURI,
+//     };
+//   });
+// });
 
 app.use(router.routes());
 
