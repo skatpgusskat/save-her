@@ -7,7 +7,6 @@ import TorrentModel from './Model/TorrentModel';
 import { transaction } from 'objection';
 import FileModel from './Model/FileModel';
 import normalizeFilePath from './utils/normalizeFilePath';
-import WaitingQueue from './WaitingQueue';
 import Locker from './Locker';
 
 export type TorrentInfo = {
@@ -28,7 +27,6 @@ if (!fs.existsSync(torrentFilesDirectory)) {
 class TorrentDownloader {
   private torrentClient = new WebTorrent();
   private s3Uploader = new S3Uploader();
-  private readonly downloadRequestWaitingQueue = new WaitingQueue();
   private readonly locker: Locker = new Locker();
 
   constructor() {
@@ -38,7 +36,7 @@ class TorrentDownloader {
 
     setInterval(() => {
       this.torrentClient.torrents.forEach(torrent => {
-        console.log(torrent.progress);
+        console.log(`${torrent.progress.toFixed(2)} - ${torrent.name}`);
       });
     }, 1000);
   }
@@ -101,8 +99,8 @@ class TorrentDownloader {
 
       return new Promise<TorrentInfo>((resolve) => {
         torrent.on('metadata', () => {
-          resolve(torrent)
           this.onMetadataLoaded(torrent);
+          resolve(torrent)
         });
       });
     });
@@ -205,4 +203,5 @@ class TorrentDownloader {
   }
 }
 const torrentDownloader = new TorrentDownloader();
+
 export default torrentDownloader;

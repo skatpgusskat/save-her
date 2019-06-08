@@ -23,7 +23,7 @@
     "mysql2": "^1.6.4",
     "objection": "^1.6.9",
     "parse-torrent": "^6.1.2",
-    "typescript": "^3.3.1",
+    "typescript": "^3.5.1",
     "webtorrent": "^0.103.0"
   },
   "devDependencies": {
@@ -33,7 +33,9 @@
     "@types/koa-bodyparser": "^4.2.1",
     "@types/koa-router": "^7.0.39",
     "@types/node": "^10.12.21",
+    "@types/node-fetch": "^2.3.5",
     "@types/object-hash": "^1.2.0",
-    "@types/webtorrent": "^0.98.4"
+    "@types/webtorrent": "^0.98.4",
+    "node-fetch": "^2.6.0"
   }
 }

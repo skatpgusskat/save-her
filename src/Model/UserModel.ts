@@ -7,6 +7,8 @@ export default class UserModel extends Model {
   createdAt: Date;
   updatedAt: Date;
 
+  torrents?: TorrentModel[];
+
   static tableName = 'users';
 
   static relationMappings = () => ({

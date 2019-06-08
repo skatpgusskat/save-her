@@ -37,6 +37,10 @@ exports.up = function (knex, Promise) {
         .unsigned()
         .references('id')
         .inTable('torrents');
+
+      table.index(['userId']);
+      table.index(['torrentId']);
+      table.unique(['userId', 'torrentId']);
     })
     .createTable('files', table => {
       table.increments('id').notNullable().primary();
@@ -52,8 +56,9 @@ exports.up = function (knex, Promise) {
 
 exports.down = function (knex, Promise) {
   return knex.schema
-    .dropTable('usersTorrents')
-    .dropTable('identities')
-    .dropTable('torrents')
-    .dropTable('users')
+    .dropTableIfExists('files')
+    .dropTableIfExists('usersTorrents')
+    .dropTableIfExists('identities')
+    .dropTableIfExists('torrents')
+    .dropTableIfExists('users');
 };

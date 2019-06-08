@@ -1,5 +1,7 @@
+process.env.NODE_ENV = (process.env.NODE_ENV && (process.env.NODE_ENV).trim().toLowerCase() == 'production') ? 'production' : 'development';
+
 import { initializeDatabase } from "./initializeDatabase";
-import torrentDownloader from "./TorrentDownloader";
+import torrentDownloader from "./torrentDownloader";
 
 export default async function startUp() {
   return Promise.all([
@@ -8,7 +10,5 @@ export default async function startUp() {
   ])
     .then(() => {
       console.log('init finished');
-
     });
-
 }
