@@ -22,6 +22,7 @@ exports.up = function (knex, Promise) {
       table.increments('id').notNullable().primary();
       table.string('name').notNullable().unique();
       table.string('infoHash').notNullable().unique();
+      table.boolean('isDownloaded').notNullable();
       table.timestamp('createdAt').notNullable().defaultTo(knex.fn.now());
       table.timestamp('updatedAt').notNullable().defaultTo(knex.raw('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'));
     })
@@ -37,6 +38,16 @@ exports.up = function (knex, Promise) {
         .references('id')
         .inTable('torrents');
     })
+    .createTable('files', table => {
+      table.increments('id').notNullable().primary();
+      table
+        .integer('torrentId')
+        .unsigned()
+        .references('id')
+        .inTable('torrents');
+      table.string('filePath').notNullable().unique();
+      table.string('s3Key').notNullable().unique();
+    });
 };
 
 exports.down = function (knex, Promise) {

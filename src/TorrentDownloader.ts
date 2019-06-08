@@ -3,7 +3,17 @@ import path from 'path';
 import fs from 'fs-extra';
 import S3Uploader from './S3Uploader';
 import parseTorrent from 'parse-torrent';
+import TorrentModel from './Model/TorrentModel';
+import { transaction } from 'objection';
+import FileModel from './Model/FileModel';
+import normalizeFilePath from './utils/normalizeFilePath';
+import WaitingQueue from './WaitingQueue';
+import Locker from './Locker';
 
+export type TorrentInfo = {
+  name: string;
+  infoHash: string;
+};
 
 const downloadDirectory = path.join(__dirname, 'files');
 if (!fs.existsSync(downloadDirectory)) {
@@ -15,9 +25,11 @@ if (!fs.existsSync(torrentFilesDirectory)) {
   fs.mkdirSync(torrentFilesDirectory);
 }
 
-export default class TorrentDownloader {
+class TorrentDownloader {
   private torrentClient = new WebTorrent();
   private s3Uploader = new S3Uploader();
+  private readonly downloadRequestWaitingQueue = new WaitingQueue();
+  private readonly locker: Locker = new Locker();
 
   constructor() {
     this.torrentClient.on('error', (err) => {
@@ -52,32 +64,46 @@ export default class TorrentDownloader {
     return infoHash;
   }
 
-  public startDownload(magnetUriOrTorrentFile: string | Buffer): Promise<Torrent> {
-    const infoHash = this.getInfoHash(magnetUriOrTorrentFile);
+  public async startDownload(magnetUriOrTorrentFile: string | Buffer): Promise<TorrentInfo> {
+    return await this.locker.lock(async () => {
+      const infoHash = this.getInfoHash(magnetUriOrTorrentFile);
 
-    let torrent = this.torrentClient.torrents.find(torrent => torrent.infoHash === infoHash);
+      let torrent = this.torrentClient.torrents.find(torrent => torrent.infoHash === infoHash);
 
-    if (!torrent) {
-      torrent = this.torrentClient.add(magnetUriOrTorrentFile, {
-        path: downloadDirectory,
+      if (torrent) {
+        if (torrent.ready) {
+          return torrent;
+        }
+
+        return new Promise<TorrentInfo>((resolve) => {
+          torrent.setMaxListeners(torrent.getMaxListeners() + 1);
+          torrent.on('ready', () => {
+            resolve(torrent);
+          });
+        });
+      }
+
+      const torrentModel = await TorrentModel.query().findOne({
+        infoHash,
       });
 
-      torrent.on('metadata', () => {
-        this.onMetadataLoaded(torrent);
+      if (torrentModel && torrentModel.isDownloaded) {
+        return torrentModel;
+      }
+
+      torrent = this.torrentClient.add(magnetUriOrTorrentFile, {
+        path: downloadDirectory,
       });
 
       torrent.on('done', () => {
         this.onDownloadDone(torrent);
       });
-    }
 
-    return new Promise<Torrent>((resolve) => {
-      if (torrent.ready) {
-        return resolve(torrent);
-      }
-      torrent.setMaxListeners(torrent.getMaxListeners() + 1);
-      torrent.on('ready', () => {
-        resolve(torrent);
+      return new Promise<TorrentInfo>((resolve) => {
+        torrent.on('metadata', () => {
+          resolve(torrent)
+          this.onMetadataLoaded(torrent);
+        });
       });
     });
   }
@@ -109,11 +135,39 @@ export default class TorrentDownloader {
   }
 
   private async onMetadataLoaded(torrent: Torrent) {
+    try {
+      await transaction(TorrentModel.knex(), async trx => {
+        const torrentModel = await TorrentModel.query().findOne({
+          infoHash: torrent.infoHash,
+        });
+
+        if (torrentModel) {
+          return;
+        }
+
+        await TorrentModel.query().insert({
+          name: torrent.name,
+          infoHash: torrent.infoHash,
+          isDownloaded: false,
+        });
+      });
+    } catch(err) {
+      console.error(err);
+    }
+
     const torrentFilePath = this.getTorrentFilePath(torrent);
     await fs.writeFile(torrentFilePath, torrent.torrentFile);
   }
 
   private async onDownloadDone(torrent: Torrent) {
+    const torrentModel = await TorrentModel.query().findOne({
+      infoHash: torrent.infoHash,
+    });
+
+    if (!torrentModel) {
+      throw new Error(`cannot find torrent model with infoHash(${torrent.infoHash}`);
+    }
+
     await Promise.all(torrent.files.map(async (file) => {
       const buffer = await new Promise<Buffer>((resolve, reject) => {
         file.getBuffer((err, buffer) => {
@@ -123,13 +177,32 @@ export default class TorrentDownloader {
           resolve(buffer);
         });
       });
-      console.log(`start uploading ${file.path}`);
 
-      const s3Key = this.s3Uploader.encodeStringForS3Key(file.path);
+      const normalizedFilePath = normalizeFilePath(file.path);
 
+      console.log(`start uploading ${normalizedFilePath}`);
+
+      const s3Key = this.s3Uploader.encodeStringForS3Key(normalizedFilePath);
       await this.s3Uploader.upload(buffer, s3Key);
-      console.log(`uploading finished ${file.path}`);
+
+      await FileModel.query().insert({
+        torrentId: torrentModel.id,
+        s3Key,
+        filePath: normalizedFilePath,
+      });
+      console.log(`uploading finished ${normalizedFilePath}`);
     }));
+
+    await TorrentModel.query()
+      .update({
+        isDownloaded: true,
+      })
+      .where({
+        infoHash: torrent.infoHash,
+      });
+
     await this.removeTorrent(torrent);
   }
 }
+const torrentDownloader = new TorrentDownloader();
+export default torrentDownloader;

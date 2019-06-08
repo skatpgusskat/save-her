@@ -1,9 +1,9 @@
 import AWS from 'aws-sdk';
 import crypto from 'crypto';
 
-const isProduciton = process.env.NODE_ENV === 'production';
+const isProduction = process.env.NODE_ENV === 'production';
 
-const s3Option = isProduciton
+const s3Option = isProduction
   ? {
     region: 'ap-northeast-2',
   }
@@ -20,7 +20,7 @@ const fileBucket = 'my-girl-friend';
 export default class S3Uploader {
   private s3 = new AWS.S3(s3Option);
   public async init() {
-    if (!isProduciton) {
+    if (!isProduction) {
       const buckets = [
         fileBucket,
       ];

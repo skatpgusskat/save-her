@@ -3,10 +3,10 @@ process.env.NODE_ENV = (process.env.NODE_ENV && (process.env.NODE_ENV).trim().to
 import Koa from 'koa';
 import Router from 'koa-router';
 import bodyParser from 'koa-bodyparser';
-import TorrentDownloader from "./TorrentDownloader";
+import torrentDownloader from "./torrentDownloader";
 import TorrentModel from './Model/TorrentModel';
+import startUp from './startUp';
 
-const torrentDownloader = new TorrentDownloader();
 const app = new Koa();
 
 app.use(bodyParser());
@@ -40,9 +40,10 @@ router.post('/magnet', async (ctx) => {
 app.use(router.routes());
 
 const port = 8080;
-torrentDownloader.init().then(() => {
-  console.log('init finished');
-  app.listen(port, () => {
-    console.log(`start server on port ${port}`);
+
+startUp()
+  .then(() => {
+    app.listen(port, () => {
+      console.log(`start server on port ${port}`);
+    });
   });
-});

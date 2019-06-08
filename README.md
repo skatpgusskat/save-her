@@ -15,3 +15,9 @@ docker run --name sh-mysql -d -p 3306:3306 -e MYSQL_ALLOW_EMPTY_PASSWORD='true' 
 docker exec -it sh-mysql mysql -u root -e "CREATE DATABASE development"
 ```
 
+Restart containers
+
+```
+docker restart sh-minio
+docker restart sh-mysql
+```
