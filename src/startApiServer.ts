@@ -6,6 +6,7 @@ import TorrentModel from './Model/TorrentModel';
 import UserModel from './Model/UserModel';
 import { transaction } from 'objection';
 import FileModel from './Model/FileModel';
+import s3Uploader from './s3Uploader';
 
 export function startApiServer(): Promise<void> {
   const app = new Koa();
@@ -101,6 +102,23 @@ export function startApiServer(): Promise<void> {
     console.log(files.length);
 
     ctx.body = { files };
+  });
+
+  router.get('/file/:fileId/downloadUrl', async (ctx) => {
+    const { fileId } = ctx.params;
+
+    const file = await FileModel.query().findById(fileId);
+    if (!file) {
+      ctx.status = 404;
+      return;
+    }
+
+    const downloadUrl = await s3Uploader.getDownloadUrl(file.s3Key);
+
+    ctx.body = {
+      url: downloadUrl,
+      filePath: file.filePath
+    };
   });
 
   app.use(router.routes());

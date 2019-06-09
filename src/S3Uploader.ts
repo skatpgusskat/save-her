@@ -17,7 +17,7 @@ const s3Option = isProduction
 
 const fileBucket = 'my-girl-friend';
 
-export default class S3Uploader {
+class S3Uploader {
   private s3 = new AWS.S3(s3Option);
   public async init() {
     if (!isProduction) {
@@ -84,4 +84,23 @@ export default class S3Uploader {
   public encodeStringForS3Key(str: string) {
     return crypto.createHash('md5').update(str).digest("hex");
   }
+
+  public getDownloadUrl(s3Key: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const params = {
+        Bucket: fileBucket,
+        Key: s3Key,
+      };
+      this.s3.getSignedUrl('getObject', params, (err, url) => {
+        if (err) {
+          return reject(err);
+        }
+        resolve(url);
+      });
+    });
+  }
 }
+
+
+const s3Uploader = new S3Uploader();
+export default s3Uploader;

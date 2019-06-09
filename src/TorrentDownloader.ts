@@ -1,7 +1,7 @@
 import WebTorrent, { Torrent } from 'webtorrent';
 import path from 'path';
 import fs from 'fs-extra';
-import S3Uploader from './S3Uploader';
+import s3Uploader from './s3Uploader';
 import parseTorrent from 'parse-torrent';
 import TorrentModel from './Model/TorrentModel';
 import { transaction } from 'objection';
@@ -26,7 +26,6 @@ if (!fs.existsSync(torrentFilesDirectory)) {
 
 class TorrentDownloader {
   private torrentClient = new WebTorrent();
-  private s3Uploader = new S3Uploader();
   private readonly locker: Locker = new Locker();
 
   constructor() {
@@ -44,7 +43,6 @@ class TorrentDownloader {
   public async init() {
     await Promise.all([
       this.loadSavedTorrentFiles(),
-      this.s3Uploader.init()
     ]);
   }
 
@@ -180,8 +178,8 @@ class TorrentDownloader {
 
       console.log(`start uploading ${normalizedFilePath}`);
 
-      const s3Key = this.s3Uploader.encodeStringForS3Key(normalizedFilePath);
-      await this.s3Uploader.upload(buffer, s3Key);
+      const s3Key = s3Uploader.encodeStringForS3Key(normalizedFilePath);
+      await s3Uploader.upload(buffer, s3Key);
 
       await FileModel.query().insert({
         torrentId: torrentModel.id,
