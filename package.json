@@ -36,6 +36,6 @@
     "@types/node-fetch": "^2.3.5",
     "@types/object-hash": "^1.2.0",
     "@types/webtorrent": "^0.98.4",
-    "node-fetch": "^2.6.0"
+    "node-fetch": "^2.6.1"
   }
 }
